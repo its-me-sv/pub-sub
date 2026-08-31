@@ -32,11 +32,12 @@ func main() {
 		routing.ExchangePerilDirect,
 		fmt.Sprintf("%s.%s", routing.PauseKey, username),
 		routing.PauseKey,
-		pubsub.Transient,
+		pubsub.SimpleQueueTransient,
 	)
 	if err != nil {
 		log.Fatalln("Failed to declare and bind queue")
 	}
+	log.Fatalln("Queue delcared and binded successfully!!")
 
 	sigChn := make(chan os.Signal, 1)
 	signal.Notify(sigChn, os.Interrupt)
