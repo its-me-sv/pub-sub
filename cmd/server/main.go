@@ -2,8 +2,6 @@ package main
 
 import (
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -28,34 +26,28 @@ func main() {
 	log.Println("Channel created successfully!!")
 
 	gamelogic.PrintServerHelp()
-	shouldBreakLoop := false
-	for !shouldBreakLoop {
-		words := gamelogic.GetInput()
 
+	for {
+		words := gamelogic.GetInput()
 		if len(words) == 0 {
 			continue
 		}
 
 		switch words[0] {
 		case "pause", "resume":
-			{
-				log.Printf("Sending \"%s\" message\n", words[0])
+			isPaused := true
+			if words[0] == "resume" {
+				isPaused = false
+			}
 
-				isPaused := true
-				if words[0] == "resume" {
-					isPaused = false
-				}
-
-				err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: isPaused})
-				if err != nil {
-					log.Fatalf("Failed to publish message")
-				}
+			log.Printf("Sending \"%s\" message\n", words[0])
+			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: isPaused})
+			if err != nil {
+				log.Fatalf("Failed to publish message")
 			}
 		case "quit":
-			{
-				log.Println("Quitting")
-				shouldBreakLoop = true
-			}
+			log.Println("Quitting")
+			return
 		default:
 			{
 				log.Println("I don't understand the command")
@@ -63,9 +55,4 @@ func main() {
 		}
 	}
 
-	sigChn := make(chan os.Signal, 1)
-	signal.Notify(sigChn, os.Interrupt)
-	if <-sigChn == os.Interrupt {
-		log.Println("Shutting down!!")
-	}
 }

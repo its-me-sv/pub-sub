@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -24,7 +23,8 @@ func main() {
 
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
-		log.Fatalln("Failed to get username")
+		fmt.Printf("%v\n", err)
+		os.Exit(1)
 	}
 
 	_, _, err = pubsub.DeclareAndBind(
@@ -39,9 +39,34 @@ func main() {
 	}
 	log.Println("Queue delcared and binded successfully!!")
 
-	sigChn := make(chan os.Signal, 1)
-	signal.Notify(sigChn, os.Interrupt)
-	if <-sigChn == os.Interrupt {
-		log.Println("Shutting down!!")
+	gameState := gamelogic.NewGameState(username)
+
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+
+		switch words[0] {
+		case "spawn":
+			if err = gameState.CommandSpawn(words); err != nil {
+				fmt.Printf("%v\n", err)
+			}
+		case "move":
+			if _, err := gameState.CommandMove(words); err != nil {
+				fmt.Printf("%v\n", err)
+			}
+		case "status":
+			gameState.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Printf("invalid command \"%s\"\n", words[0])
+		}
 	}
 }
