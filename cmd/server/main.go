@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -25,6 +26,18 @@ func main() {
 	}
 	log.Println("Channel created successfully!!")
 
+	_, _, err = pubsub.DeclareAndBind(
+		conn,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		fmt.Sprintf("%s.*", routing.GameLogSlug),
+		pubsub.SimpleQueueDurable,
+	)
+	if err != nil {
+		log.Fatalln("Failed to declare and bind queue")
+	}
+	log.Println("Queue declared and binded successfully!!")
+
 	gamelogic.PrintServerHelp()
 
 	for {
@@ -41,7 +54,14 @@ func main() {
 			}
 
 			log.Printf("Sending \"%s\" message\n", words[0])
-			err = pubsub.PublishJSON(channel, routing.ExchangePerilDirect, routing.PauseKey, routing.PlayingState{IsPaused: isPaused})
+			err = pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilDirect,
+				routing.PauseKey,
+				routing.PlayingState{
+					IsPaused: isPaused,
+				},
+			)
 			if err != nil {
 				log.Fatalf("Failed to publish message")
 			}
@@ -49,9 +69,7 @@ func main() {
 			log.Println("Quitting")
 			return
 		default:
-			{
-				log.Println("I don't understand the command")
-			}
+			log.Println("I don't understand the command")
 		}
 	}
 

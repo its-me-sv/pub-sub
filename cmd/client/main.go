@@ -23,7 +23,7 @@ func main() {
 
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
-		fmt.Printf("%v\n", err)
+		fmt.Println(err)
 		os.Exit(1)
 	}
 
@@ -50,11 +50,11 @@ func main() {
 		switch words[0] {
 		case "spawn":
 			if err = gameState.CommandSpawn(words); err != nil {
-				fmt.Printf("%v\n", err)
+				fmt.Println(err)
 			}
 		case "move":
 			if _, err := gameState.CommandMove(words); err != nil {
-				fmt.Printf("%v\n", err)
+				fmt.Println(err)
 			}
 		case "status":
 			gameState.CommandStatus()
