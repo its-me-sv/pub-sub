@@ -27,19 +27,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	_, _, err = pubsub.DeclareAndBind(
+	gameState := gamelogic.NewGameState(username)
+
+	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
 		fmt.Sprintf("%s.%s", routing.PauseKey, username),
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
+		handlerPause(gameState),
 	)
 	if err != nil {
-		log.Fatalln("Failed to declare and bind queue")
+		log.Fatalln(err)
 	}
-	log.Println("Queue delcared and binded successfully!!")
-
-	gameState := gamelogic.NewGameState(username)
+	log.Println("Channel subscribed successfully!!")
 
 	for {
 		words := gamelogic.GetInput()
@@ -68,5 +69,12 @@ func main() {
 		default:
 			fmt.Printf("invalid command \"%s\"\n", words[0])
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(ps routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(ps)
 	}
 }
