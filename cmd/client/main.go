@@ -21,6 +21,12 @@ func main() {
 	defer conn.Close()
 	log.Println("RabbitMQ connected successfully!!")
 
+	channel, err := conn.Channel()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer channel.Close()
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		fmt.Println(err)
@@ -32,7 +38,7 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
-		fmt.Sprintf("%s.%s", routing.PauseKey, username),
+		fmt.Sprintf("%s.%s", routing.PauseKey, gameState.Player.Username),
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
 		handlerPause(gameState),
@@ -40,7 +46,15 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	log.Println("Channel subscribed successfully!!")
+
+	err = pubsub.SubscribeJSON(
+		conn,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.Player.Username),
+		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
+		pubsub.SimpleQueueTransient,
+		handlerMove(gameState),
+	)
 
 	for {
 		words := gamelogic.GetInput()
@@ -54,9 +68,21 @@ func main() {
 				fmt.Println(err)
 			}
 		case "move":
-			if _, err := gameState.CommandMove(words); err != nil {
+			move, err := gameState.CommandMove(words)
+			if err != nil {
 				fmt.Println(err)
 			}
+
+			err = pubsub.PublishJSON(
+				channel,
+				routing.ExchangePerilTopic,
+				fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.Player.Username),
+				move,
+			)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("Army has been moved!")
 		case "status":
 			gameState.CommandStatus()
 		case "help":
@@ -76,5 +102,12 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(ps routing.PlayingState) {
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(am gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+		gs.HandleMove(am)
 	}
 }
