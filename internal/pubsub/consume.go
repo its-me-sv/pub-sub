@@ -3,15 +3,23 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type SimpleQueueType string
+type AckType string
 
 const (
 	SimpleQueueDurable   SimpleQueueType = "durable"
 	SimpleQueueTransient SimpleQueueType = "transient"
+)
+
+const (
+	AckTypeAck         AckType = "Ack"
+	AckTypeNackRequeue AckType = "NackRequeue"
+	AckTypeNackDiscard AckType = "NackDiscard"
 )
 
 func DeclareAndBind(
@@ -58,7 +66,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T),
+	handler func(T) AckType,
 ) error {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -74,8 +82,16 @@ func SubscribeJSON[T any](
 		for data := range delivery {
 			var msg T
 			if err = json.Unmarshal(data.Body, &msg); err == nil {
-				handler(msg)
-				data.Ack(false)
+				ack := handler(msg)
+				log.Println(ack)
+				switch ack {
+				case AckTypeAck:
+					data.Ack(false)
+				case AckTypeNackRequeue:
+					data.Nack(false, true)
+				case AckTypeNackDiscard:
+					data.Nack(false, false)
+				}
 			}
 		}
 	}()
