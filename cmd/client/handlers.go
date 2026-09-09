@@ -22,7 +22,7 @@ func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.
 		defer fmt.Print("> ")
 
 		switch gs.HandleMove(am) {
-		case gamelogic.MoveOutComeSafe:
+		case gamelogic.MoveOutComeSafe, gamelogic.MoveOutcomeSamePlayer:
 			return pubsub.AckTypeAck, nil
 
 		case gamelogic.MoveOutcomeMakeWar:
@@ -35,7 +35,11 @@ func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.
 					Defender: gs.GetPlayerSnap(),
 				},
 			)
-			return pubsub.AckTypeNackRequeue, err
+			if err != nil {
+				fmt.Printf("failed to declare war, error: %v\n", err)
+				return pubsub.AckTypeNackRequeue, err
+			}
+			return pubsub.AckTypeAck, nil
 
 		default:
 			return pubsub.AckTypeNackDiscard, nil
