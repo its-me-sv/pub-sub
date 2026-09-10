@@ -106,3 +106,12 @@ func main() {
 		}
 	}
 }
+
+func publishGameLog(channel *amqp.Channel, gl routing.GameLog) error {
+	return pubsub.PublishGob(
+		channel,
+		routing.ExchangePerilTopic,
+		fmt.Sprintf("%s.%s", routing.GameLogSlug, gl.Username),
+		gl,
+	)
+}

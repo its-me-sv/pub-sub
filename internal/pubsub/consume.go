@@ -69,7 +69,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType,
-	handler func(T) (AckType, error),
+	handler func(T) AckType,
 ) error {
 	channel, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -85,11 +85,9 @@ func SubscribeJSON[T any](
 		for data := range delivery {
 			var msg T
 			if err = json.Unmarshal(data.Body, &msg); err == nil {
-				ack, err := handler(msg)
-				if err != nil {
-					log.Printf("some error happened when calling handler: %v\n", err)
-				}
+				ack := handler(msg)
 				log.Println(ack)
+
 				switch ack {
 				case AckTypeAck:
 					data.Ack(false)

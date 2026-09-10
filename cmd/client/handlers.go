@@ -10,21 +10,21 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) (pubsub.AckType, error) {
-	return func(ps routing.PlayingState) (pubsub.AckType, error) {
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.AckType {
+	return func(ps routing.PlayingState) pubsub.AckType {
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
-		return pubsub.AckTypeAck, nil
+		return pubsub.AckTypeAck
 	}
 }
 
-func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.ArmyMove) (pubsub.AckType, error) {
-	return func(am gamelogic.ArmyMove) (pubsub.AckType, error) {
+func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.ArmyMove) pubsub.AckType {
+	return func(am gamelogic.ArmyMove) pubsub.AckType {
 		defer fmt.Print("> ")
 
 		switch gs.HandleMove(am) {
 		case gamelogic.MoveOutComeSafe, gamelogic.MoveOutcomeSamePlayer:
-			return pubsub.AckTypeAck, nil
+			return pubsub.AckTypeAck
 
 		case gamelogic.MoveOutcomeMakeWar:
 			err := pubsub.PublishJSON(
@@ -38,18 +38,18 @@ func handlerMove(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.
 			)
 			if err != nil {
 				fmt.Printf("failed to declare war, error: %v\n", err)
-				return pubsub.AckTypeNackRequeue, err
+				return pubsub.AckTypeNackRequeue
 			}
-			return pubsub.AckTypeAck, nil
+			return pubsub.AckTypeAck
 
 		default:
-			return pubsub.AckTypeNackDiscard, nil
+			return pubsub.AckTypeNackDiscard
 		}
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.RecognitionOfWar) (pubsub.AckType, error) {
-	return func(row gamelogic.RecognitionOfWar) (pubsub.AckType, error) {
+func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.RecognitionOfWar) pubsub.AckType {
+	return func(row gamelogic.RecognitionOfWar) pubsub.AckType {
 		defer fmt.Print("> ")
 
 		outcome, winner, loser := gs.HandleWar(row)
@@ -60,39 +60,30 @@ func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.R
 
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
-			return pubsub.AckTypeNackRequeue, nil
+			return pubsub.AckTypeNackRequeue
 
 		case gamelogic.WarOutcomeNoUnits:
-			return pubsub.AckTypeNackDiscard, nil
+			return pubsub.AckTypeNackDiscard
 
 		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeYouWon:
-			log.Message = fmt.Sprintf("{%s} won a war against {%s}", winner, loser)
+			log.Message = fmt.Sprintf("%s won a war against %s", winner, loser)
 			if err := publishGameLog(channel, log); err != nil {
 				fmt.Printf("error happend when publishing, error: %v\n", err)
-				return pubsub.AckTypeNackRequeue, nil
+				return pubsub.AckTypeNackRequeue
 			}
-			return pubsub.AckTypeAck, nil
+			return pubsub.AckTypeAck
 
 		case gamelogic.WarOutcomeDraw:
-			log.Message = fmt.Sprintf("A war between {%s} and {%s} resulted in a draw", winner, loser)
+			log.Message = fmt.Sprintf("A war between %s and %s resulted in a draw", winner, loser)
 			if err := publishGameLog(channel, log); err != nil {
 				fmt.Printf("error happend when publishing, error: %v\n", err)
-				return pubsub.AckTypeNackRequeue, nil
+				return pubsub.AckTypeNackRequeue
 			}
-			return pubsub.AckTypeAck, nil
+			return pubsub.AckTypeAck
 
 		default:
 			fmt.Println("IDK what to say, sometimes stuff happens, just ignore this msg")
-			return pubsub.AckTypeNackDiscard, nil
+			return pubsub.AckTypeNackDiscard
 		}
 	}
-}
-
-func publishGameLog(channel *amqp.Channel, gl routing.GameLog) error {
-	return pubsub.PublishGob(
-		channel,
-		routing.ExchangePerilTopic,
-		fmt.Sprintf("%s.%s", routing.GameLogSlug, gl.Username),
-		gl,
-	)
 }
