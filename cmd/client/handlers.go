@@ -60,7 +60,7 @@ func handlerWar(gs *gamelogic.GameState, channel *amqp.Channel) func(gamelogic.R
 
 		switch outcome {
 		case gamelogic.WarOutcomeNotInvolved:
-			return pubsub.AckTypeNackRequeue
+			return pubsub.AckTypeNackDiscard
 
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.AckTypeNackDiscard

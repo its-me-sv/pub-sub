@@ -55,6 +55,9 @@ func main() {
 		pubsub.SimpleQueueTransient,
 		handlerMove(gameState, channel),
 	)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	err = pubsub.SubscribeJSON(
 		conn,
@@ -64,6 +67,9 @@ func main() {
 		pubsub.SimpleQueueDurable,
 		handlerWar(gameState, channel),
 	)
+	if err != nil {
+		log.Fatalln(err)
+	}
 
 	for {
 		words := gamelogic.GetInput()

@@ -26,17 +26,17 @@ func main() {
 	}
 	log.Println("Channel created successfully!!")
 
-	_, _, err = pubsub.DeclareAndBind(
+	err = pubsub.SubscribeGob(
 		conn,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		fmt.Sprintf("%s.*", routing.GameLogSlug),
 		pubsub.SimpleQueueDurable,
+		handlerLog,
 	)
 	if err != nil {
-		log.Fatalln("Failed to declare and bind queue")
+		log.Fatalln(err)
 	}
-	log.Println("Queue declared and binded successfully!!")
 
 	gamelogic.PrintServerHelp()
 
