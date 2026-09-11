@@ -32,7 +32,7 @@ func main() {
 		routing.GameLogSlug,
 		fmt.Sprintf("%s.*", routing.GameLogSlug),
 		pubsub.SimpleQueueDurable,
-		handlerLog,
+		handlerLogs(),
 	)
 	if err != nil {
 		log.Fatalln(err)
