@@ -127,6 +127,11 @@ func subscribe[T any](
 		return err
 	}
 
+	err = channel.Qos(10, 0, false)
+	if err != nil {
+		return err
+	}
+
 	delivery, err := channel.Consume(queue.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return err
@@ -138,7 +143,6 @@ func subscribe[T any](
 			if err == nil {
 				ack := handler(msg)
 				log.Println(ack)
-
 				switch ack {
 				case AckTypeAck:
 					data.Ack(false)
@@ -147,6 +151,8 @@ func subscribe[T any](
 				case AckTypeNackDiscard:
 					data.Nack(false, false)
 				}
+			} else {
+				data.Nack(false, false)
 			}
 		}
 	}()
