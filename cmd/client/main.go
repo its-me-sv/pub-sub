@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -38,7 +40,7 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilDirect,
-		fmt.Sprintf("%s.%s", routing.PauseKey, gameState.Player.Username),
+		fmt.Sprintf("%s.%s", routing.PauseKey, gameState.GetUsername()),
 		routing.PauseKey,
 		pubsub.SimpleQueueTransient,
 		handlerPause(gameState),
@@ -50,7 +52,7 @@ func main() {
 	err = pubsub.SubscribeJSON(
 		conn,
 		routing.ExchangePerilTopic,
-		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.Player.Username),
+		fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.GetUsername()),
 		fmt.Sprintf("%s.*", routing.ArmyMovesPrefix),
 		pubsub.SimpleQueueTransient,
 		handlerMove(gameState, channel),
@@ -81,21 +83,24 @@ func main() {
 		case "spawn":
 			if err = gameState.CommandSpawn(words); err != nil {
 				fmt.Println(err)
+				continue
 			}
 		case "move":
 			move, err := gameState.CommandMove(words)
 			if err != nil {
 				fmt.Println(err)
+				continue
 			}
 
 			err = pubsub.PublishJSON(
 				channel,
 				routing.ExchangePerilTopic,
-				fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.Player.Username),
+				fmt.Sprintf("%s.%s", routing.ArmyMovesPrefix, gameState.GetUsername()),
 				move,
 			)
 			if err != nil {
 				fmt.Println(err)
+				continue
 			}
 			fmt.Println("Army has been moved!")
 		case "status":
@@ -103,7 +108,33 @@ func main() {
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			if len(words) < 2 {
+				fmt.Println(`missing argument "n"`)
+				continue
+			}
+
+			n, err := strconv.Atoi(words[1])
+			if err != nil {
+				fmt.Println(`invalid value for "n"`)
+				continue
+			}
+
+			fmt.Println("spamming goes brrrrrrrr!!")
+			for n > 0 {
+				if err := pubsub.PublishJSON(
+					channel,
+					routing.ExchangePerilTopic,
+					fmt.Sprintf("%s.%s", routing.GameLogSlug, gameState.GetUsername()),
+					routing.GameLog{
+						CurrentTime: time.Now().UTC(),
+						Message:     gamelogic.GetMaliciousLog(),
+						Username:    gameState.GetUsername(),
+					},
+				); err != nil {
+					continue
+				}
+				n -= 1
+			}
 		case "quit":
 			gamelogic.PrintQuit()
 			return
